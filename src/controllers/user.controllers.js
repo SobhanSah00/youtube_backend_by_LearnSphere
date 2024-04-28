@@ -1,10 +1,10 @@
 import { asyncHandler } from "../utils/asyncHandeler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
-import { uploadonCloudinary } from "../utils/cloudinary.js";
+import { uploadonCloudinary, deleteOnCloudinary} from "../utils/cloudinary.js";
 import {ApiResponse} from "../utils/ApiResponse.js"
-import { jwt } from "jsonwebtoken";
-import { restart } from "nodemon";
+import  jwt  from "jsonwebtoken";
+
 
 const generateAccesstokenAndRefreshTokens = async(userId) => {
     try {
@@ -55,8 +55,8 @@ const registerUser = asyncHandler(async (req, res) => {
   //  }
 
   if (
-    [fullName, email, username, password].some(
-      (fields) => fields?.trim() === ""
+    [fullName, email, username, password]
+      .some((fields) => fields?.trim() === ""
     )
   ) {
     throw new ApiError(400, "All fields are required");
@@ -312,59 +312,88 @@ const updateAccountDetails = asyncHandler(async(req, res) => {
 });
 
 const updateUserAvatar = asyncHandler(async(req, res) => {
-  const avtarLocalPath = req.file?.path
+  // Step 1: Retrieve New Avatar Local Path
+  const newAvatarLocalPath = req.file?.path;
   
-  if(!avtarLocalPath) {
-    throw new ApiError(400, "Avtar file is missing")
+  if (!newAvatarLocalPath) {
+    throw new ApiError(400, "Avatar file is missing");
   }
 
-  const avatar = await uploadonCloudinary(avtarLocalPath)
+  // Step 2: Upload New Avatar to Cloudinary
+  const newAvatar = await uploadonCloudinary(newAvatarLocalPath);
 
-  if(!avatar.url) {
-    throw new ApiError(400,"Error while uploading on avtar")
+  if (!newAvatar.url) {
+    throw new ApiError(400, "Error while uploading avatar");
   }
 
-  const user = await User.findByIdAndUpdate(
-    req.user?._id,
-    {
-      $set : {
-        avatar : avatar.url
-      }
-    },
-    {new : true}
-  ).select("-password")
+  // Step 3: Retrieve User Document and Previous Avatar URL
+  const user = await User.findById(req.user?._id);
 
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const previousAvatarURL = user.avatar;
+
+  // Step 4: Delete Previous Avatar from Cloudinary
+  if (previousAvatarURL) {
+    const publicId = previousAvatarURL.split('/').pop().split('.')[0];
+    await deleteOnCloudinary(publicId);
+  }
+
+  // Step 5: Update User's Avatar URL
+  user.avatar = newAvatar.url;
+  await user.save();
+
+  // Step 6: Respond with Success
   return res
-  .status(200)
-  .json(new ApiResponse(200, user, "Avatar image updated successfully"))
-
+    .status(200)
+    .json(new ApiResponse(200, user, "Avatar image updated successfully"));
 });
 
 const updateUserCoverImage = asyncHandler(async(req, res) => {
-  const coverImageLocalPath = req.file?.path
+  const newCoverImageLocalPath = req.file?.path
 
-  if(!coverImageLocalPath) {
+  if(!newCoverImageLocalPath) {
     throw new ApiError(400, "Cover Image is missing .")
   }
-  const coverImage = await uploadonCloudinary(coverImageLocalPath)
-  if(!coverImage.url) {
+  const newCoverImage = await uploadonCloudinary(newCoverImageLocalPath)
+  if(!newCoverImage.url) {
     throw new ApiError(400, "Error while uploading cover image")
   }
-  const user = await User.findByIdAndUpdate(
-    req.user?._id,
-    {
-      $set : {
-        coverImage : coverImage.url
-      }
-    },
-    {new : true}
-  ).select("-password")
+
+  const user = await User.findById(req.user?._id)
+
+  if(!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const previousCoverImageURL = user.coverImage;
+
+  if (previousCoverImageURL) {
+    const publicId = previousCoverImageURL.split('/').pop().split('.')[0];
+    await deleteOnCloudinary(publicId);
+  }
+
+  // const user = await User.findByIdAndUpdate(
+  //   req.user?._id,
+  //   {
+  //     $set : {
+  //       coverImage : coverImage.url
+  //     }
+  //   },
+  //   {new : true}
+  // ).select("-password")
+
+  user.coverImage = newCoverImage.url;
+  await user.save();
 
   return res
   .status(200)
   .json(new ApiResponse(200, user, "Cover Image is uploaded successfully"))
 
 });
+
 
 
 
