@@ -4,6 +4,8 @@ import { User } from "../models/user.model.js";
 import { uploadonCloudinary, deleteOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
+import { response } from "express";
+import mongoose from "mongoose";
 
 const generateAccesstokenAndRefreshTokens = async (userId) => {
   try {
@@ -407,7 +409,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 });
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
-  const { username } = req.params;
+  const { username } = req.params; //it comes from the url
 
   if (!username?.trim()) {
     throw new ApiError(400, "Username is missing");
@@ -420,6 +422,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
       },
     },
     {
+      //find suscribers : kisne mughe suscribe kiya
       $lookup: {
         from: "subscriptions",
         localField: "_id",
@@ -445,13 +448,100 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         },
         isSubscribed: {
           $cond: {
-            if: { $in: [req.user?._id, "$subscribers."] },
+            if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+            then: true,
+            else: false,
+            n,
           },
         },
       },
     },
-  ]);
-}); //INCOMPLETE , BECAUSE I CAN NOT UNDERSTAND 😟😟😔😔
+    {
+      $project: {
+        fullname: 1,
+        username: 1,
+        email: 1,
+        avatar: 1,
+        coverImage: 1,
+        subscribersCount: 1,
+        channelsSubscribeToCount: 1,
+        isSubscribed: 1,
+        // subscribers : 1,
+        // subscriberTo : 1,
+      },
+    },
+  ]); //aggregate return always array
+
+  console.log(channel);
+
+  if (!channel?.length) {
+    throw new ApiError(404, "channel is does not exist");
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, channel[0], "user channel is fetched successfully")
+    );
+});
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+  const user = await User.aggregate(
+    //finding the user watch history
+    [
+      {
+        $match: {
+          _id: new mongoose.Types.ObjectId(req.user._id),
+        },
+      },
+      {
+        $lookup: {
+          from: "videos",
+          localField: "watchHistory",
+          foreignField: "_id",
+          as: "watchHistory",
+          //wrote sub pipeline for specific user watch history
+          pipeline: [
+            {
+              $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "ownerHistory",
+                pipeline: [
+                  {
+                    $project: {
+                      fullName: 1,
+                      username: 1,
+                      avatar: 1,
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              $addFields: {
+                owner: {
+                  $first: "$ownerHistory",
+                },
+              },
+            },
+          ],
+        },
+      },
+    ]
+  );
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        user[0].watchHistory,
+        "Watch history fetched successfully"
+      )
+    );
+});
 
 export {
   registerUser,
@@ -464,4 +554,5 @@ export {
   updateUserAvatar,
   updateUserCoverImage,
   getUserChannelProfile,
+  getWatchHistory,
 };
