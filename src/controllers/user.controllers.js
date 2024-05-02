@@ -409,6 +409,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 });
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
+
   const { username } = req.params; //it comes from the url
 
   if (!username?.trim()) {
@@ -451,7 +452,6 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
             if: { $in: [req.user?._id, "$subscribers.subscriber"] },
             then: true,
             else: false,
-            n,
           },
         },
       },
