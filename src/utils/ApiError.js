@@ -11,6 +11,7 @@ class ApiError extends Error {
         this.data = null
         this.message = message
         this.success = false
+        this.errors = errors
         //here we not handel the api response or error code herre we handle the api error 
         if(stack) {
             this.stack = stack;
