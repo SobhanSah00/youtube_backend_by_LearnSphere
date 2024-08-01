@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 import { response } from "express";
 import mongoose from "mongoose";
 
-const generateAccesstokenAndRefreshTokens = async (userId) => {
+const generateAccesstokenAndRefreshTokens = async (userId) => {    
   try {
     // 1 . create refresh token
     const user = await User.findById(userId);
