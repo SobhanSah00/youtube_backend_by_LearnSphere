@@ -4,7 +4,7 @@ import { User } from "../models/user.model.js";
 import { uploadonCloudinary, deleteOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
-import { response } from "express";
+// import { response } from "express";
 import mongoose from "mongoose";
 
 const generateAccesstokenAndRefreshTokens = async (userId) => {    
@@ -30,7 +30,7 @@ const generateAccesstokenAndRefreshTokens = async (userId) => {
   }
 };
 
-const registerUser = asyncHandler(async (req, res) => {
+const registerUser = asyncHandler(async (req, res) => { 
   //ALGORITHIM TO REGISTERING THE USER
 
   /*
@@ -424,6 +424,8 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     },
     {
       //find suscribers : kisne mughe suscribe kiya
+      // example like hfc subscriber ko kisne kisne kiya user like a,b,c , 
+      //so we count the channels not the subscriber for this field and then add up the channels 
       $lookup: {
         from: "subscriptions",
         localField: "_id",
