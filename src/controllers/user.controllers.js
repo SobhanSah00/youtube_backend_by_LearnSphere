@@ -459,7 +459,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
       },
     },
     {
-      $project: {
+      $project: { //only give the selected the filed
         fullname: 1,
         username: 1,
         email: 1,
@@ -473,6 +473,9 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
       },
     },
   ]); //aggregate return always array
+
+  console.log(channel);
+  
 
   console.log(channel);
 
@@ -502,7 +505,7 @@ const getWatchHistory = asyncHandler(async (req, res) => {
           localField: "watchHistory",
           foreignField: "_id",
           as: "watchHistory",
-          //wrote sub pipeline for specific user watch history
+          //wrote sub pipeline for speciv fic user watch history
           pipeline: [
             {
               $lookup: {
@@ -533,6 +536,8 @@ const getWatchHistory = asyncHandler(async (req, res) => {
       },
     ]
   );
+  console.log(user);
+  
 
   return res
     .status(200)
