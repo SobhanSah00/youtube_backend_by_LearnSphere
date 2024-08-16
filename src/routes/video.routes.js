@@ -5,7 +5,8 @@ import {
     togglePublishStatus,
     updateVideoFields,
     updateVideoThumbnail,
-    getVideoById
+    getVideoById,
+    getAllVideos
 
  } from "../controllers/video.controllers.js";
 import { verifyJwt } from "../middlewares/auth.middleware.js";
@@ -33,5 +34,6 @@ router.route("/public-video/:videoId").patch(verifyJwt,togglePublishStatus)
 router.route("/update-video-fields/:videoId").patch(verifyJwt,updateVideoFields)
 router.route("/update-video-thumbnail/:videoId").patch(verifyJwt,upload.single("thumbnail"),updateVideoThumbnail)
 router.route("/getVideoById/:videoId").get(verifyJwt,getVideoById)
+router.route("/getallvideo").get(verifyJwt,getAllVideos)
 
 export default router

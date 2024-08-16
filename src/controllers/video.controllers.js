@@ -25,7 +25,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
     pipeline.push({
       $search: {
         indexName: "search-videos",
-        $text: {
+        text: {
           // if u find the difficulti then go to the mongodb aggregate docs and $search about the $text and index, search oporator
           query: query,
           path: ["title", "description", "owner"],
@@ -69,7 +69,49 @@ const getAllVideos = asyncHandler(async (req, res) => {
         [sortBy]: sortType === "asc" ? 1 : -1,
       },
     });
+  } else {
+    pipeline.push({
+      $sort: {
+        createdAt: -1,
+      },
+    });
   }
+
+  // push the pipeline to owner details what will be required to show
+  pipeline.push(
+    {
+      $lookup: {
+        from: "users",
+        localField: "owner",
+        foreignField: "_id",
+        as: "ownerDetails",
+        pipeline: [
+          {
+            $project: {
+              username: 1,
+              "avatar.url": 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $unwind: "$ownerDetails",
+    }
+  );
+
+
+  const videoAggregate = Video.aggregate(pipeline);
+
+  const options = {
+    page: parseInt(page,10),
+    limit: parseInt(limit,10),
+  }
+
+  const video = await Video.aggregatePaginate(videoAggregate,options)
+
+  return res.status(200).json(new ApiResponse(200,video,"videos fetched successfully"))
+
 });
 
 // TODO: get video, upload to cloudinary, create video
@@ -143,8 +185,6 @@ const getVideoById = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid user id");
   }
 
-
-  
   const video = await Video.aggregate([
     {
       $match: {
@@ -432,6 +472,7 @@ const deleteVideoAndThumbnail = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "video delted successfully"));
 });
 
+//TODO : toggle publish status for hide or seen videos
 const togglePublishStatus = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
   console.log(videoId);
