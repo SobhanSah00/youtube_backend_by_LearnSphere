@@ -36,11 +36,13 @@ const getUserTweets = asyncHandler(async (req, res) => {
   }
 
   const tweets = await Tweet.aggregate([
+    // match the owner id
     {
       $match: {
         owner: new mongoose.Types.ObjectId(userId),
       },
     },
+    // fetch the user and added to the tweet document , add imp field to this field
     {
       $lookup: {
         from: "users",
@@ -57,28 +59,101 @@ const getUserTweets = asyncHandler(async (req, res) => {
         ],
       },
     },
+    //add the like field in tweet , in documents
     {
-        $lookup : {
-            from : "likes",
-            localField : "id",
-            foreignField : "tweetId",
-            as : "likesInfo",
-            pipeline : [
-                {
-                    $project : {
-                        likedBy : 1
-                    }
-                }
-            ]
-        }
+      $lookup: {
+        from: "likes",
+        localField: "_id",
+        foreignField: "tweet",
+        as: "likesInfo",
+        pipeline: [
+          {
+            $project: {
+              likedBy: 1,
+            },
+          },
+        ],
+      },
     },
+    //add the comment field in tweet
     {
-        $lookup : {
-            from : "comments",
-            localField : "_id",
-        }
-    }
+      $lookup: {
+        from: "comments",
+        localField: "_id",
+        foreignField: "tweet",
+        as: "commentsInfo",
+        pipeline: [
+          {
+            $lookup: {
+              from: "likes",
+              localField: "_id",
+              foreignField: "comment",
+              as: "likesInfo",
+            },
+          },
+          {
+            $addFields : {
+              likesCount: { $size: "$likesInfo" }
+            }
+          },
+          {
+            $sort : {
+              likesCount : -1,
+              createdAt : -1
+            }
+          },
+          {
+            $project : {
+              owner : 1,
+              content : 1,
+              likesCount : 1,
+              createdAt : 1
+            }
+          }
+        ],
+      },
+    },
+    // add some imp fields like is liked , like count
+    {
+      $addFields: {
+        likesCount: {
+          $size: "$likesInfo",
+        },
+        commentsCount: {
+          $size: "$commentsInfo",
+        },
+        isLiked: {
+          $cond: {
+            if: { $in: [req.user?._id, "$likesInfo.likedBy"] },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    // sort according to the date
+    {
+      $sort: {
+        createdAt: -1,
+      },
+    },
+    // project the imp information which is requred for frontnd
+    {
+      $project: {
+        content: 1,
+        ownerInfo: 1,
+        likesCount: 1,
+        commentsCount: 1,
+        commentsInfo : 1,
+        isLiked: 1,
+        createdAt: 1,
+      },
+    },
   ]);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Tweets fetched successfully"));
 });
 
 //TODO: update tweet

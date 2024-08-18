@@ -10,6 +10,7 @@ import { Comment } from "../models/comment.model.js";
 // import { text } from "express";
 
 //TODO: get all videos based on query, sort, pagination
+//fixme : complete the controller
 const getAllVideos = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
 
@@ -67,6 +68,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
         the object { [sortBy]: ... } will become { title: ... }. This is useful when you don't know the key name ahead of time and need to generate it based on user input or other dynamic factors.
         */
         [sortBy]: sortType === "asc" ? 1 : -1,
+        // fixme : please
       },
     });
   } else {
