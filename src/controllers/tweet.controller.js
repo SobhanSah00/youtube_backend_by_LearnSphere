@@ -36,13 +36,13 @@ const getUserTweets = asyncHandler(async (req, res) => {
   }
 
   const tweets = await Tweet.aggregate([
-    // match the owner id
+    // Match the owner id
     {
       $match: {
         owner: new mongoose.Types.ObjectId(userId),
       },
     },
-    // fetch the user and added to the tweet document , add imp field to this field
+    // Fetch user details and add to tweet document
     {
       $lookup: {
         from: "users",
@@ -59,7 +59,15 @@ const getUserTweets = asyncHandler(async (req, res) => {
         ],
       },
     },
-    //add the like field in tweet , in documents
+    // Debug: Show tweets with ownerInfo
+    {
+      $addFields: {
+        ownerInfoDebug: {
+          $arrayElemAt: ["$ownerInfo", 0]
+        }
+      }
+    },
+    // Add like information to tweets
     {
       $lookup: {
         from: "likes",
@@ -75,7 +83,7 @@ const getUserTweets = asyncHandler(async (req, res) => {
         ],
       },
     },
-    //add the comment field in tweet
+    // Add comment information to tweets
     {
       $lookup: {
         from: "comments",
@@ -83,37 +91,122 @@ const getUserTweets = asyncHandler(async (req, res) => {
         foreignField: "tweet",
         as: "commentsInfo",
         pipeline: [
+          // Lookup for each comment's owner
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "ownerInfo",
+              pipeline: [
+                {
+                  $project: {
+                    username: 1,
+                    "avatar.url": 1,
+                  },
+                },
+              ],
+            },
+          },
+          // Lookup for likes on each comment
           {
             $lookup: {
               from: "likes",
               localField: "_id",
               foreignField: "comment",
               as: "likesInfo",
+              pipeline: [
+                {
+                  $project: {
+                    likedBy: 1,
+                  },
+                },
+              ],
+            },
+          },
+          // Lookup for replies to each comment
+          {
+            $lookup: {
+              from: "comments",
+              localField: "_id",
+              foreignField: "parentComment",
+              as: "repliesInfo",
+              pipeline: [
+                {
+                  $lookup: {
+                    from: "likes",
+                    localField: "_id",
+                    foreignField: "comment",
+                    as: "likesInfo",
+                    pipeline: [
+                      {
+                        $project: {
+                          likedBy: 1,
+                        },
+                      },
+                    ],
+                  },
+                },
+                {
+                  $addFields: {
+                    likesCount: {
+                      $size: "$likesInfo",
+                    },
+                    isLiked: {
+                      $cond: [
+                        { $in: [req.user?._id, "$likesInfo.likedBy"] },
+                        true,
+                        false,
+                      ],
+                    },
+                  },
+                },
+                {
+                  $project: {
+                    owner: 1,
+                    content: 1,
+                    likesCount: 1,
+                    isLiked: 1,
+                    createdAt: 1,
+                  },
+                },
+              ],
             },
           },
           {
-            $addFields : {
-              likesCount: { $size: "$likesInfo" }
-            }
+            $addFields: {
+              likesCount: {
+                $size: "$likesInfo",
+              },
+              isLiked: {
+                $cond: [
+                  { $in: [req.user?._id, "$likesInfo.likedBy"] },
+                  true,
+                  false,
+                ],
+              },
+            },
           },
           {
-            $sort : {
-              likesCount : -1,
-              createdAt : -1
-            }
+            $sort: {
+              likesCount: -1,
+              createdAt: -1,
+            },
           },
           {
-            $project : {
-              owner : 1,
-              content : 1,
-              likesCount : 1,
-              createdAt : 1
-            }
-          }
+            $project: {
+              owner: 1,
+              content: 1,
+              likesCount: 1,
+              isLiked: 1,
+              createdAt: 1,
+              repliesInfo: 1,
+            },
+          },
         ],
       },
     },
-    // add some imp fields like is liked , like count
+    // Add important fields to tweet documents
     {
       $addFields: {
         likesCount: {
@@ -123,28 +216,28 @@ const getUserTweets = asyncHandler(async (req, res) => {
           $size: "$commentsInfo",
         },
         isLiked: {
-          $cond: {
-            if: { $in: [req.user?._id, "$likesInfo.likedBy"] },
-            then: true,
-            else: false,
-          },
+          $cond: [
+            { $in: [req.user?._id, "$likesInfo.likedBy"] },
+            true,
+            false,
+          ],
         },
       },
     },
-    // sort according to the date
+    // Sort tweets by creation date
     {
       $sort: {
         createdAt: -1,
       },
     },
-    // project the imp information which is requred for frontnd
+    // Project necessary fields for the frontend
     {
       $project: {
         content: 1,
         ownerInfo: 1,
         likesCount: 1,
         commentsCount: 1,
-        commentsInfo : 1,
+        commentsInfo: 1,
         isLiked: 1,
         createdAt: 1,
       },
@@ -153,7 +246,7 @@ const getUserTweets = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(200, "Tweets fetched successfully"));
+    .json(new ApiResponse(200, "Tweets fetched successfully", tweets));
 });
 
 //TODO: update tweet
