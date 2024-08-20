@@ -14,6 +14,14 @@ import { Comment } from "../models/comment.model.js";
 const getAllVideos = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
 
+  if (!userId) {
+    throw new ApiError(404, "there is no user id");
+  }
+
+  if (!isValidObjectId(userId)) {
+    throw new ApiError(404, "invalid user id");
+  }
+
   // console.log(userId);
   const pipeline = [];
 
@@ -25,7 +33,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
   if (query) {
     pipeline.push({
       $search: {
-        indexName: "search-videos",
+        index: "search-videos",
         text: {
           // if u find the difficulti then go to the mongodb aggregate docs and $search about the $text and index, search oporator
           query: query,
@@ -33,14 +41,6 @@ const getAllVideos = asyncHandler(async (req, res) => {
         },
       },
     });
-  }
-
-  if (!userId) {
-    throw new ApiError(404, "there is no user id");
-  }
-
-  if (!isValidObjectId(userId)) {
-    throw new ApiError(404, "invalid user id");
   }
 
   pipeline.push({
@@ -57,7 +57,8 @@ const getAllVideos = asyncHandler(async (req, res) => {
   });
   // sort the videos based on the query views, when the video is created , views duration
   // using the asc and dsc for this assending and desendin
-  if (sortBy && sortType) {
+  if (sortBy ) {
+    const sortOrder = sortType === "asc" ? 1 : -1;
     pipeline.push({
       $sort: {
         //[sortBy] -> this is the way of wrote advance code in dynamic state
@@ -67,11 +68,11 @@ const getAllVideos = asyncHandler(async (req, res) => {
         Dynamic Key Assignment: If sortBy contains the string "title", 
         the object { [sortBy]: ... } will become { title: ... }. This is useful when you don't know the key name ahead of time and need to generate it based on user input or other dynamic factors.
         */
-        [sortBy]: sortType === "asc" ? 1 : -1,
-        // fixme : please
+        [sortBy]: sortOrder 
       },
     });
   } else {
+    // Default sort by creation date in descending order
     pipeline.push({
       $sort: {
         createdAt: -1,
@@ -175,12 +176,13 @@ const publishAVideo = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, video, "video uploaded successfully"));
 });
 
+// fixme : create also nesting comment and like also
 //TODO: get video by id
 const getVideoById = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
 
   if (!isValidObjectId(videoId)) {
-    throw new ApiError(400, "Invalid valid id");
+    throw new ApiError(400, "Invalid video id");
   }
 
   if (!isValidObjectId(req.user?._id)) {
@@ -250,6 +252,7 @@ const getVideoById = asyncHandler(async (req, res) => {
         foreignField: "video",
         as: "comments",
         pipeline: [
+          // Lookup the user who made the comment
           {
             $lookup: {
               from: "users",
@@ -258,12 +261,85 @@ const getVideoById = asyncHandler(async (req, res) => {
               as: "owner",
             },
           },
+          // Lookup likes for the comment
+          {
+            $lookup: {
+              from: "likes",
+              localField: "_id",
+              foreignField: "comment",
+              as: "likesInfo",
+            },
+          },
+          // Lookup nested comments (replies)
+          {
+            $lookup: {
+              from: "comments",
+              localField: "_id",
+              foreignField: "parentComment",
+              as: "replies",
+              pipeline: [
+                {
+                  $lookup: {
+                    from: "users",
+                    localField: "owner",
+                    foreignField: "_id",
+                    as: "owner",
+                  },
+                },
+                {
+                  $lookup: {
+                    from: "likes",
+                    localField: "_id",
+                    foreignField: "comment",
+                    as: "likesInfo",
+                  },
+                },
+                {
+                  $addFields: {
+                    likesCount: { $size: "$likesInfo" },
+                    isLiked: {
+                      $cond: {
+                        if: { $in: [req.user?._id, "$likesInfo.likedBy"] },
+                        then: true,
+                        else: false,
+                      },
+                    },
+                  },
+                },
+                {
+                  $project: {
+                    content: 1,
+                    createdAt: 1,
+                    likesCount: 1,
+                    isLiked: 1,
+                    "owner.username": 1,
+                    "owner.avatar.url": 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              likesCount: { $size: "$likesInfo" },
+              isLiked: {
+                $cond: {
+                  if: { $in: [req.user?._id, "$likesInfo.likedBy"] },
+                  then: true,
+                  else: false,
+                },
+              },
+            },
+          },
           {
             $project: {
               content: 1,
               createdAt: 1,
+              likesCount: 1,
+              isLiked: 1,
               "owner.username": 1,
               "owner.avatar.url": 1,
+              replies: 1, // Include nested replies
             },
           },
         ],
@@ -302,30 +378,18 @@ const getVideoById = asyncHandler(async (req, res) => {
     },
   ]);
 
-  if (!video) {
-    throw new ApiError(500, "failed to fetch video");
+  if (!video || video.length === 0) {
+    throw new ApiError(500, "Failed to fetch video");
   }
 
-  //increment views if video fetched successfully
+  // Increment views if the video is fetched successfully
   await Video.findByIdAndUpdate(videoId, {
     $inc: {
       views: 1,
     },
   });
 
-  /* TODO : this is different way of increment of view */
-
-  // fixme: 1st one is currectlly but the 2nd one is not working not increse the view
-  // await Video.updateOne(
-  //   { _id: video._id },
-  //   {
-  //     $inc: { views: 1 },
-  //   }
-  // );
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, video[0], "video details fetched successfully"));
+  return res.status(200).json(new ApiResponse(200, video[0], "Video details fetched successfully"));
 });
 
 //TODO: update video details like title, description, thumbnail

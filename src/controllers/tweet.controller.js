@@ -60,13 +60,13 @@ const getUserTweets = asyncHandler(async (req, res) => {
       },
     },
     // Debug: Show tweets with ownerInfo
-    {
-      $addFields: {
-        ownerInfoDebug: {
-          $arrayElemAt: ["$ownerInfo", 0]
-        }
-      }
-    },
+    // {
+    //   $addFields: {
+    //     ownerInfoDebug: {
+    //       $arrayElemAt: ["$ownerInfo", 0]
+    //     }
+    //   }
+    // },
     // Add like information to tweets
     {
       $lookup: {
