@@ -120,7 +120,6 @@ const getVideoComments = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, comments, "Comments fetched successfully"));
 });
 
-
 // TODO: add a comment to a video
 const addComment = asyncHandler(async (req, res) => {
   const { videoId, parentCommentId } = req.params;
@@ -170,36 +169,36 @@ const addComment = asyncHandler(async (req, res) => {
 });
 
 const addReply = asyncHandler(async (req, res) => {
-    const { commentId } = req.params;
-    const { content } = req.body;
-  
-    if (!isValidObjectId(commentId)) {
-      throw new ApiError(400, "Invalid comment id");
-    }
-  
-    if (!content) {
-      throw new ApiError(400, "Content is required");
-    }
-  
-    // Check if the parent comment exists
-    const parentComment = await Comment.findById(commentId);
-    if (!parentComment) {
-      throw new ApiError(404, "Parent comment not found");
-    }
-  
-    // Create the reply (a comment with a parentComment field set)
-    const reply = await Comment.create({
-      content,
-      parentComment: commentId,  // Link to parent comment
-      owner: req.user._id,        // The user who is replying
-      video: parentComment.video, // Link to the original video
-    });
-  
-    return res
-      .status(200)
-      .json(new ApiResponse(200, reply, "Reply added successfully"));
+  const { commentId } = req.params;
+  const { content } = req.body;
+
+  if (!isValidObjectId(commentId)) {
+    throw new ApiError(400, "Invalid comment id");
+  }
+
+  if (!content) {
+    throw new ApiError(400, "Content is required");
+  }
+
+  // Check if the parent comment exists
+  const parentComment = await Comment.findById(commentId);
+  if (!parentComment) {
+    throw new ApiError(404, "Parent comment not found");
+  }
+
+  // Create the reply (a comment with a parentComment field set)
+  const reply = await Comment.create({
+    content,
+    parentComment: commentId, // Link to parent comment
+    owner: req.user._id, // The user who is replying
+    video: parentComment.video, // Link to the original video
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, reply, "Reply added successfully"));
 });
-  
+
 // TODO: update a comment
 const updateComment = asyncHandler(async (req, res) => {
   const { commentId } = req.params;
@@ -265,4 +264,4 @@ const deleteComment = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, { commentId }, "comment deleted successfully"));
 });
 
-export { getVideoComments, addComment,addReply, updateComment, deleteComment };
+export { getVideoComments, addComment, addReply, updateComment, deleteComment };
