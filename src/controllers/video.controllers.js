@@ -10,7 +10,6 @@ import { Comment } from "../models/comment.model.js";
 // import { text } from "express";
 
 //TODO: get all videos based on query, sort, pagination
-//fixme : complete the controller
 const getAllVideos = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
 
@@ -57,7 +56,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
   });
   // sort the videos based on the query views, when the video is created , views duration
   // using the asc and dsc for this assending and desendin
-  if (sortBy ) {
+  if (sortBy) {
     const sortOrder = sortType === "asc" ? 1 : -1;
     pipeline.push({
       $sort: {
@@ -68,7 +67,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
         Dynamic Key Assignment: If sortBy contains the string "title", 
         the object { [sortBy]: ... } will become { title: ... }. This is useful when you don't know the key name ahead of time and need to generate it based on user input or other dynamic factors.
         */
-        [sortBy]: sortOrder 
+        [sortBy]: sortOrder,
       },
     });
   } else {
@@ -92,7 +91,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
           {
             $project: {
               username: 1,
-              "avatar.url": 1,
+              avatar: 1,
             },
           },
         ],
@@ -103,18 +102,18 @@ const getAllVideos = asyncHandler(async (req, res) => {
     }
   );
 
-
   const videoAggregate = Video.aggregate(pipeline);
 
   const options = {
-    page: parseInt(page,10),
-    limit: parseInt(limit,10),
-  }
+    page: parseInt(page, 10),
+    limit: parseInt(limit, 10),
+  };
 
-  const video = await Video.aggregatePaginate(videoAggregate,options)
+  const video = await Video.aggregatePaginate(videoAggregate, options);
 
-  return res.status(200).json(new ApiResponse(200,video,"videos fetched successfully"))
-
+  return res
+    .status(200)
+    .json(new ApiResponse(200, video, "videos fetched successfully"));
 });
 
 // TODO: get video, upload to cloudinary, create video
@@ -237,7 +236,7 @@ const getVideoById = asyncHandler(async (req, res) => {
           {
             $project: {
               username: 1,
-              "avatar.url": 1,
+              avatar: 1,
               subscribersCount: 1,
               isSubscribed: 1,
             },
@@ -313,7 +312,7 @@ const getVideoById = asyncHandler(async (req, res) => {
                     likesCount: 1,
                     isLiked: 1,
                     "owner.username": 1,
-                    "owner.avatar.url": 1,
+                    "owner.avatar": 1,
                   },
                 },
               ],
@@ -338,7 +337,7 @@ const getVideoById = asyncHandler(async (req, res) => {
               likesCount: 1,
               isLiked: 1,
               "owner.username": 1,
-              "owner.avatar.url": 1,
+              "owner.avatar": 1,
               replies: 1, // Include nested replies
             },
           },
@@ -389,7 +388,9 @@ const getVideoById = asyncHandler(async (req, res) => {
     },
   });
 
-  return res.status(200).json(new ApiResponse(200, video[0], "Video details fetched successfully"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, video[0], "Video details fetched successfully"));
 });
 
 //TODO: update video details like title, description, thumbnail

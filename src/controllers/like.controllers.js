@@ -36,37 +36,36 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
 //TODO: toggle like on comment
 // toggle like on comment or nested comment
 const toggleCommentLike = asyncHandler(async (req, res) => {
-    const { commentId } = req.params;
-  
-    if (!isValidObjectId(commentId)) {
-      throw new ApiError(400, "Invalid comment id");
-    }
-  
-    // Find the comment, including any nested ones
-    const comment = await Comment.findById(commentId).populate('parentComment');
-  
-    if (!comment) {
-      throw new ApiError(404, "Comment not found");
-    }
-  
-    const isLikeAlready = await Like.findOne({
-      comment: commentId,
-      likedBy: req.user?._id,
-    });
-  
-    if (isLikeAlready) {
-      await Like.findByIdAndDelete(isLikeAlready?._id);
-      return res.status(200).json(new ApiResponse(200, { isLiked: false }));
-    }
-  
-    await Like.create({
-      comment: commentId,
-      likedBy: req.user?._id,
-    });
-  
-    return res.status(200).json(new ApiResponse(200, { isLiked: true }));
+  const { commentId } = req.params;
+
+  if (!isValidObjectId(commentId)) {
+    throw new ApiError(400, "Invalid comment id");
+  }
+
+  // Find the comment, including any nested ones
+  const comment = await Comment.findById(commentId).populate("parentComment");
+
+  if (!comment) {
+    throw new ApiError(404, "Comment not found");
+  }
+
+  const isLikeAlready = await Like.findOne({
+    comment: commentId,
+    likedBy: req.user?._id,
   });
-  
+
+  if (isLikeAlready) {
+    await Like.findByIdAndDelete(isLikeAlready?._id);
+    return res.status(200).json(new ApiResponse(200, { isLiked: false }));
+  }
+
+  await Like.create({
+    comment: commentId,
+    likedBy: req.user?._id,
+  });
+
+  return res.status(200).json(new ApiResponse(200, { isLiked: true }));
+});
 
 //TODO: toggle like on tweet
 const toggleTweetLike = asyncHandler(async (req, res) => {
@@ -161,8 +160,14 @@ const getLikedVideos = asyncHandler(async (req, res) => {
   ]);
 
   return res
-  .status(200)
-  .json(new ApiResponse(200,likedVideoAggregate,"liked Videos fetched successfullly"))
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        likedVideoAggregate,
+        "liked Videos fetched successfullly"
+      )
+    );
 });
 
 export { toggleCommentLike, toggleTweetLike, toggleVideoLike, getLikedVideos };
