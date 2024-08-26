@@ -168,6 +168,7 @@ const addComment = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, "Comment added successfully"));
 });
 
+// Todo : add reply on a comment
 const addReply = asyncHandler(async (req, res) => {
   const { commentId } = req.params;
   const { content } = req.body;
