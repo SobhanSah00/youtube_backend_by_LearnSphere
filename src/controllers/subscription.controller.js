@@ -50,10 +50,70 @@ const toggleSubscription = asyncHandler(async (req, res) => {
 
 // TODO: controller to return subscriber list of a channel
 const getUserChannelSubscribers = asyncHandler(async (req, res) => {
-    const {channelId} = req.params
+    const {channelId} = req.params;
+
+    if(!isValidObjectId(channelId)) {
+        throw new ApiError(400,"Invalid ChannelId")
+    }
+
+    // here the channel id is a mongoDB id but this is a string , we need to convert the string to object id 
+    // we requre the oject id for quarring in mongodb, but here we have stirng so thats why we converted sting to ObjectId
+    channelId = new mongoose.Types.ObjectId(channelId)
+
+    const subscribers = await Subscription.aggregate([
+        {
+            $match : {
+                channel: channelId
+            }
+        },
+        {
+            $lookup : {
+                from : "users",
+                localField : "subscriber",
+                foreignField: "_id",
+                as : "subscriber",
+                pipeline : [
+                    {
+                        $lookup : {
+                            from : "subscriptions",
+                            localField : "_id",
+
+                            foreignField : "channel",
+                            as : "subscribed_channels" //subscribed to subscriber
+                        }
+                    },
+                    {
+                        $addFields : {
+                            subscribed_channels : {
+                                $cond : {
+                                    if: {
+                                        $in : [
+                                            channelId,
+                                            "$subscribed_channels.subscriber"
+                                        ]
+                                    },
+                                    then : true,
+                                    else : false
+                                }
+                            },
+                            subscribersCount : {
+                                $size : "$subscribed_channels"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $unwind : "$subscriber"
+        },
+        {
+            $project
+        }
+    ])
 })
 
-// controller to return channel list to which user has subscribed
+// TODO: controller to return channel list to which user has subscribed
 const getSubscribedChannels = asyncHandler(async (req, res) => {
     const { subscriberId } = req.params
 })
