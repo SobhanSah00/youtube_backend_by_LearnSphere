@@ -1,1 +1,1 @@
-export const DB_NAME = "youteube_bakend"
+export const DB_NAME = "LearnSphere_backend"
