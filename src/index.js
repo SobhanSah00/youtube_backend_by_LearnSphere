@@ -2,32 +2,33 @@
 import dotenv from 'dotenv'
 import connectDB from "../src/db/index.js";
 
-import {app} from "./app.js"
+import { app } from "./app.js"
 
 
 
 dotenv.config({
-        path : './env'
-    })
+    path: './env'
+})
 
 connectDB()
-.then(() => {
-    
+    .then(() => {
 
-    app.on("error" , (error) => {
-        console.log("ERROR",error);
-        throw error;
+        // In Express.js, the .on() function is used to listen for events on an object, 
+        // like a server or a stream.
+        app.on("error", (error) => {
+            console.log("ERROR", error);
+            throw error;
+        })
+
+        app.listen(process.env.PORT || 8000, () => {
+            console.log(`⚙️  Server running on port ${process.env.PORT} 🔥`)
+        });
     })
-    
-    app.listen(process.env.PORT || 8000, () => {
-        console.log(`⚙️  Server running on port ${process.env.PORT} 🔥`)
-    });
-})
-.catch((error) => {
-    console.log("MONGODB CONNECTION FAILED");
-    console.log("ERROR",error)
-    throw error
-})
+    .catch((error) => {
+        console.log("MONGODB CONNECTION FAILED");
+        console.log("ERROR", error)
+        throw error
+    })
 
 //when the async method is end then the a promise is return always
 
