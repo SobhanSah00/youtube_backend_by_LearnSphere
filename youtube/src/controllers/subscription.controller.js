@@ -7,7 +7,7 @@ import {asyncHandler} from "../utils/asyncHandeler.js"
 
 // TODO: toggle subscription   
 const toggleSubscription = asyncHandler(async (req, res) => {
-    const {channelId} = req.params
+    const {channelId} = req.params 
 
     if(!isValidObjectId(channelId)) {
         throw new ApiError(400,"Invalid channelId")
